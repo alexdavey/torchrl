@@ -10,16 +10,16 @@ import logging
 import os.path
 import shutil
 import tempfile
-
 from collections import defaultdict
 from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 from typing import Callable
 
+import numpy as np
 import torch
-
 from tensordict import PersistentTensorDict, TensorDict
+
 from torchrl._utils import KeyDependentDefaultDict
 from torchrl.data.datasets.utils import _get_root_dir
 from torchrl.data.replay_buffers.replay_buffers import TensorDictReplayBuffer
@@ -360,6 +360,11 @@ class MinariExperienceReplay(TensorDictReplayBuffer):
                     from torchrl.objectives.utils import split_trajectories
 
                     td_data = split_trajectories(td_data).memmap_(self.data_path)
+
+            def int64_encoder(obj):
+                if isinstance(obj, np.integer):
+                    return int(obj)
+
             with open(self.metadata_path, "w") as metadata_file:
                 dataset = minari.load_dataset(self.dataset_id)
                 self.metadata = asdict(dataset.spec)
@@ -369,7 +374,7 @@ class MinariExperienceReplay(TensorDictReplayBuffer):
                 self.metadata["action_space"] = _spec_to_dict(
                     self.metadata["action_space"]
                 )
-                json.dump(self.metadata, metadata_file)
+                json.dump(self.metadata, metadata_file, default=int64_encoder)
             self._load_and_proc_metadata()
             return td_data
 
